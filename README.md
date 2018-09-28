@@ -169,10 +169,10 @@ docker run \
   --name nginx_proxy \
   -p 80:80 \
   -p 443:443 \
-  -v /root/deploy/nginx/conf/conf.d/kwseeker.top.conf:/etc/nginx/conf.d/kwseeker.top.conf:ro \
-  -v /root/deploy/nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro \
-  -v /root/deploy/nginx/html:/usr/share/nginx/html:rw \
-  -v /root/deploy/nginx/log:/var/log/nginx:rw \
+  -v /root/deploy/nginx/conf/conf.d:/etc/nginx/conf.d \
+  -v /root/deploy/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+  -v /root/deploy/nginx/html:/usr/share/nginx/html \
+  -v /root/deploy/nginx/log:/var/log/nginx \
   -v /root/deploy/fauria/images:/root/deploy/fauria/images \
   -v /root/deploy/fauria/docs:/root/deploy/fauria/docs \
   -d nginx:1.13.11-alpine
@@ -185,7 +185,9 @@ docker start
 
 注意：  
 1) 要使用二级域名（如：docs.kwseeker.top），首先需要手动将其添加到DNS解析列表里面，不然浏览器访问会报“Unknown Host”/“无法访问此网站”错误。
-2) docker -v 映射目录会完全覆盖容器内目录，也就是说映射目录中不存在文件A,但是容器目录存在，此文件会被删除
+2) docker -v 读写有两种模式'rw', 'ro'， 默认为'rw'。  
+'rw' 挂载目录，则可以双向读写同步； 挂载文件则docker的写可以同步到宿主机，反之不行。  
+'ro' 挂载目录和文件，任何一端都不能向另一端读写同步，相当于在创建容器时从宿主机拷贝了一份不可改变的文件到Docker虚拟机。
 
 ## FTP服务器搭建
 https://dashboard.daocloud.io/packages/150167f9-7b9e-4246-b67b-5f003def9077
@@ -225,3 +227,95 @@ lftp ftpuser@localhost      # 首先确认下 localhost 是 127.0.0.1 的别名
 添加安全组配置（控制端口和浮动端口）
 ftp://xxx.xxx.xxx.xxx   #服务器公网IP
 ```
+
+## Tomcat集群Docker实现
+由于只有一台云服务器，就是用Docker模拟每个单独的web服务器，通过端口定位连接到每个Web Docker容器（如果有多台实体服务器，通过IP定位）。
+
+#### 拉取Tomcat Docker镜像与启动容器
+```
+# Tomcat镜像拉取
+docker search tomcat
+docker pull tomcat:8.5
+
+docker run -it --rm tomcat:8.5
+docker exec -it <containerName> bash    
+# 进去查看配置文件和webapps都存在哪, 并拷贝一份配置文件到本地目录 
+# 配置文件 /usr/local/tomcat/conf
+# webapps /usr/local/tomcat/webapps
+# 日志文件 /usr/local/tomcat/logs
+docker cp <containerName>:/usr/local/tomcat/conf/server.xml /root/deploy/tomcat/conf/
+
+# Tomcat容器启动
+启动两个容器
+docker run \
+  --name tomcat_emall1 \
+  -v /root/deploy/tomcat/conf/server.xml:/usr/local/tomcat/conf/server.xml:ro \
+  -v /root/deploy/tomcat/webapps/emall1:/usr/local/tomcat/webapps \
+  -v /root/deploy/tomcat/logs/emall1:/usr/local/tomcat/logs \
+  -p 8091:8080 \
+  -d tomcat:8.5
+
+docker run \
+  --name tomcat_emall2 \
+  -v /root/deploy/tomcat/conf/server.xml:/usr/local/tomcat/conf/server.xml:ro \
+  -v /root/deploy/tomcat/webapps/emall2:/usr/local/tomcat/webapps \
+  -v /root/deploy/tomcat/logs/emall2:/usr/local/tomcat/logs \
+  -p 8092:8080 \
+  -d tomcat:8.5
+
+# 测试
+curl localhost:8091
+curl localhost:8092
+```
+
+#### 添加Nginx反向代理与负载均衡配置
+创建一个新的配置文件 emall.conf
+```
+upstream emall_server {
+    ip_hash;
+    # server localhost:8090 down;
+    server localhost:8091 weight=10;
+    server localhost:8092 weight=20;
+    # server localhost:8093 backup;
+}
+
+server {
+    listen 80;
+    server_name emall.kwseeker.top;
+
+    location / {
+        proxy_pass http://emall_server;
+    }
+}
+```
+注释掉 kwseeker.top.conf 中 emall.kwseeker.top 相关的无用配置
+
+修改 nginx "docker run" 命令，添加容器连接
+```
+docker run \
+  --name nginx_proxy \
+  -p 80:80 \
+  -p 443:443 \
+  -v /root/deploy/nginx/conf/conf.d:/etc/nginx/conf.d \
+  -v /root/deploy/nginx/conf/nginx.conf:/etc/nginx/nginx.conf \
+  -v /root/deploy/nginx/html:/usr/share/nginx/html \
+  -v /root/deploy/nginx/log:/var/log/nginx \
+  -v /root/deploy/fauria/images:/root/deploy/fauria/images \
+  -v /root/deploy/fauria/docs:/root/deploy/fauria/docs \
+  --link tomcat_emall1:tomcat_emall1 \
+  --link tomcat_emall2:tomcat_emall2 \
+  -d nginx:1.13.11-alpine
+```
+
+#### 通路测试
+外网连接 http://emall.kwseeker.top , 如果正确显示Tomcat页面则成功。
+
+#### 部署实际项目
+
+#### 项目测试
+
+## Redis集群Docker实现
+Redis有两个任务：作为Session服务器，实现Session分离与单点登录；作为MySQL数据库的缓存。
+
+## MySQL服务器集群
+主从复制架构。
