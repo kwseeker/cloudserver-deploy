@@ -1,0 +1,50 @@
+version: "2"
+services:
+  redis_01m:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6380:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_01m
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+  redis_02m:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6381:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_02m
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+  redis_03m:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6382:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_03m
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+  redis_01s:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6383:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_01s
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+  redis_02s:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6384:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_02s
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes
+  redis_03s:
+    image: redis:5.0.1-alpine
+    ports:
+      - 6385:6379
+    volumes:
+      - /home/lee/deploy/redis_cluster/nodes/conf/redis.conf:/usr/local/etc/redis/redis.conf
+    container_name: redis_03s
+    command: redis-server /usr/local/etc/redis/redis.conf --appendonly yes

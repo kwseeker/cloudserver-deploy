@@ -317,5 +317,7 @@ docker run \
 ## Redis集群Docker实现
 Redis有两个任务：作为Session服务器，实现Session分离与单点登录；作为MySQL数据库的缓存。
 
+基于Docker搭建Redis集群，参考《RedisCluster.md》
+
 ## MySQL服务器集群
 主从复制架构。
